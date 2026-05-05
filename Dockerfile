@@ -1,0 +1,48 @@
+# ==========================================
+# Stage 1: Builder
+# ==========================================
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig*.json ./
+
+# Install ALL dependencies (including devDeps for build)
+RUN npm ci
+
+COPY . .
+
+# Build for production
+RUN npm run build
+
+# ==========================================
+# Stage 2: Production
+# ==========================================
+FROM node:18-alpine AS production
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY package*.json ./
+
+# Install ONLY production dependencies
+RUN npm ci --only=production --ignore-scripts
+
+# Copy built artifacts from builder
+
+COPY --from=builder /app/dist ./dist
+
+
+# Copy other necessary files (like views if MVC)
+
+
+EXPOSE 3000
+
+# Create logs directory and give permissions to node user
+RUN mkdir -p logs && chown -R node:node logs
+
+USER node
+
+CMD ["npm", "start"]
